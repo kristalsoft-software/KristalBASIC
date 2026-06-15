@@ -1,0 +1,33 @@
+==================================================
+KRISTALBASIC v1.0 - LICENSE AND ABOUT
+==================================================
+
+KristalBASIC is an independent programming language that combines the performance of the C language with the ease of BASIC syntax. This software (the KristalBASIC compiler) converts your code into executable Windows applications (.exe).
+
+--------------------------------------------------
+1. USER RIGHTS AND GAME LICENSING
+--------------------------------------------------
+All applications, games, and programs developed using KristalBASIC are 100% YOURS.
+- You can distribute your applications as open-source (free) or closed-source (commercial/paid).
+- Your code or compiled .exe files are NOT restricted by the licenses of the underlying libraries (including GPL). (See: GCC Runtime Library Exception).
+
+--------------------------------------------------
+2. EMBEDDED TOOLS AND OPEN SOURCE LICENSES
+--------------------------------------------------
+KristalBASIC embeds two world-class open-source tools to compile C code into machine code and render 3D graphics in the background:
+
+A) Raylib (zlib/libpng License)
+The infrastructure library handling graphics, audio, input, and physics.
+The zlib license allows you to freely use, modify, and distribute the code even in commercial projects without attribution (or opening your source code).
+Original Library: https://www.raylib.com/
+
+B) MinGW-w64 / GCC (GNU GPL License)
+The core engine that compiles C code into Windows .exe files.
+The MinGW and GCC projects are under the GNU General Public License (GPL). The `mingw64` compiler files in your KristalBASIC installation folder are a copy of this free software.
+Thanks to the GCC "Runtime Library Exception", your compiled projects are completely unaffected by the GPL.
+Original Library: https://www.mingw-w64.org/
+
+--------------------------------------------------
+Developer: Kristalsoft
+Developed with love in Turkey.
+==================================================

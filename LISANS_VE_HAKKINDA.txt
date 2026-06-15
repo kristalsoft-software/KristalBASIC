@@ -1,0 +1,33 @@
+==================================================
+KRISTALBASIC v1.0 - LİSANS VE HAKKINDA
+==================================================
+
+KristalBASIC, C dilinin performansını BASIC sözdiziminin kolaylığıyla birleştiren bağımsız bir programlama dilidir. Bu yazılım (KristalBASIC derleyicisi), kodlarınızı çalıştırılabilir Windows uygulamalarına (.exe) dönüştürür.
+
+--------------------------------------------------
+1. KULLANICI HAKLARI VE OYUNLARINIZIN LİSANSI
+--------------------------------------------------
+KristalBASIC kullanarak geliştirdiğiniz tüm uygulamalar, oyunlar ve programlar %100 SİZE AİTTİR.
+- Yazdığınız uygulamaları ister açık kaynaklı (ücretsiz), ister kapalı kaynaklı (ticari/ücretli) olarak satabilirsiniz.
+- Sizin yazdığınız kodlar veya derlenen .exe dosyaları, alt yapıda kullanılan kütüphanelerin lisansları tarafından (GPL dahil) sınırlandırılmaz. (Bkz: GCC Runtime Library Exception).
+
+--------------------------------------------------
+2. GÖMÜLÜ ARAÇLAR VE AÇIK KAYNAK LİSANSLARI
+--------------------------------------------------
+KristalBASIC, arka planda C kodlarını makine diline çevirmek ve 3D grafikleri çizmek için açık kaynaklı dünya standartlarında iki büyük aracı gömülü olarak barındırır:
+
+A) Raylib (zlib/libpng Lisansı)
+Grafik, ses, girdi ve fizik işlemlerini yöneten altyapı kütüphanesi.
+Zlib lisansı, kodu serbestçe kullanmanıza, değiştirmenize ve ticari projelerde dahi atıf yapmadan (veya kodu açmadan) dağıtmanıza izin verir. 
+Orijinal Kütüphane: https://www.raylib.com/
+
+B) MinGW-w64 / GCC (GNU GPL Lisansı)
+C kodlarını Windows .exe dosyalarına derleyen ana motor.
+MinGW ve GCC projesi, GNU Genel Kamu Lisansı (GPL) altındadır. KristalBASIC kurulum klasörünüzde yer alan `mingw64` derleyici dosyaları bu özgür yazılımın bir kopyasıdır. 
+GCC "Çalışma Zamanı İstisnası" (Runtime Exception) sayesinde derlediğiniz projeleriniz GPL'den etkilenmez.
+Orijinal Kütüphane: https://www.mingw-w64.org/
+
+--------------------------------------------------
+Geliştirici: Kristalsoft
+Türkiye'de sevgiyle geliştirildi.
+==================================================
