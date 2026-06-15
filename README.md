@@ -2,7 +2,7 @@
   <p>
     <a href="README.md">🇬🇧 English</a> | <a href="README_tr.md">🇹🇷 Türkçe</a>
   </p>
-  <h1>💎 KristalBASIC</h1>
+  <h1>KristalBASIC</h1>
   <p><strong>A modern programming language combining C's performance with BASIC's syntax simplicity.</strong></p>
 
   [![License: Freeware](https://img.shields.io/badge/License-Freeware-blue.svg)](#license)
