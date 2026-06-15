@@ -1,0 +1,663 @@
+# ======================================================================
+#  KRISTAL VADISI  (Crystal Valley)
+#  KristalBASIC v1.0 - 3D Kesif / Hayatta Kalma / Toplama Oyunu
+#
+#  Bu dosya, KristalBASIC v1.0 El Kitabi'ndaki tum temel ozellikleri
+#  tek bir projede bir araya getiren bir referans/ornek programdir:
+#
+#    - ENUM, STRUCT, CLASS (metodlu OOP)
+#    - LIST ve DICT, FOR / FOR IN / WHILE
+#    - IF/ELSE, SWITCH/CASE
+#    - TRY/CATCH/THROW
+#    - Tum matematik fonksiyonlari (trigonometri, LERP, CLAMP, RAND...)
+#    - Dosya I/O (oyun gunlugu)
+#    - 2D HUD + 3D dunya (terrain, kup, kure, silindir, kapsul, izgara)
+#    - Klavye/Fare girdisiyle ilk sahis kamera
+#
+#  NOT: Buyuk projelerde bu dosya, IMPORT "kristal_dunya.kbas" AS dunya
+#  gibi modullere bolunebilir. Tek dosyada okunabilirligi korumak icin
+#  burada her sey bir arada tutulmustur.
+# ======================================================================
+
+
+# ----------------------------------------------------------------------
+# 1) ENUM TANIMLARI
+# ----------------------------------------------------------------------
+
+ENUM OyunDurumu {
+    MENU,
+    OYUNDA,
+    BITTI,
+    KAZANDI
+}
+
+ENUM DusmanDurumu {
+    DEVRIYE,
+    TAKIP,
+    SALDIRI
+}
+
+
+# ----------------------------------------------------------------------
+# 2) STRUCT TANIMI
+# ----------------------------------------------------------------------
+
+# Minimap uzerinde ekran koordinati tutmak icin hafif veri paketi
+STRUCT Nokta2D {
+    DECIMAL x
+    DECIMAL y
+}
+
+
+# ----------------------------------------------------------------------
+# 3) SINIFLAR (CLASS)
+# ----------------------------------------------------------------------
+
+# --- Toplanabilir Kristal ---
+CLASS Kristal {
+    DECIMAL x
+    DECIMAL y
+    DECIMAL z
+    DECIMAL yaricap
+    INT deger
+    STRING tur
+    BOOL toplandi
+
+    # Hafif bir "yuzme" animasyonu icin yukseklik salinimi
+    FUNC VOID Guncelle(DECIMAL zaman) {
+        THIS.y = THIS.y + SIN(zaman * 2.0 + THIS.x) * 0.01
+    }
+}
+
+# --- Dusman (Vadi Bekcisi) ---
+CLASS Dusman {
+    DECIMAL x
+    DECIMAL y
+    DECIMAL z
+    DECIMAL hiz
+    DECIMAL devriyeAcisi
+    DECIMAL devriyeMerkezX
+    DECIMAL devriyeMerkezZ
+    DECIMAL devriyeYaricap
+    INT can
+    INT durum
+
+    # Basit durum makinesi: DEVRIYE -> TAKIP -> SALDIRI
+    FUNC VOID Guncelle(DECIMAL oyuncuX, DECIMAL oyuncuZ, DECIMAL dt, DECIMAL araziCarpan) {
+        DECIMAL dx = oyuncuX - THIS.x
+        DECIMAL dz = oyuncuZ - THIS.z
+        DECIMAL mesafe = SQRT(dx * dx + dz * dz)
+
+        IF (mesafe < 18.0) {
+            THIS.durum = DusmanDurumu.TAKIP
+        } ELSE {
+            IF (mesafe > 30.0) {
+                THIS.durum = DusmanDurumu.DEVRIYE
+            }
+        }
+
+        IF (THIS.durum == DusmanDurumu.TAKIP) {
+            IF (mesafe < 2.2) {
+                THIS.durum = DusmanDurumu.SALDIRI
+            } ELSE {
+                THIS.x = THIS.x + (dx / mesafe) * THIS.hiz * dt
+                THIS.z = THIS.z + (dz / mesafe) * THIS.hiz * dt
+            }
+        } ELSE {
+            IF (THIS.durum == DusmanDurumu.DEVRIYE) {
+                THIS.devriyeAcisi = THIS.devriyeAcisi + dt * 0.6
+                THIS.x = THIS.devriyeMerkezX + COS(THIS.devriyeAcisi) * THIS.devriyeYaricap
+                THIS.z = THIS.devriyeMerkezZ + SIN(THIS.devriyeAcisi) * THIS.devriyeYaricap
+            }
+        }
+
+        THIS.y = TERRAIN_HEIGHT(THIS.x, THIS.z, araziCarpan) + 1.0
+    }
+}
+
+# --- Oyuncu ---
+CLASS Oyuncu {
+    DECIMAL x
+    DECIMAL y
+    DECIMAL z
+    DECIMAL hiz
+    INT can
+    INT maxCan
+    INT skor
+    LIST_STRING envanter
+
+    FUNC VOID HasarAl(INT miktar) {
+        THIS.can = THIS.can - miktar
+        IF (THIS.can < 0) {
+            THIS.can = 0
+        }
+    }
+
+    FUNC VOID KristalTopla(Kristal k) {
+        THIS.skor = THIS.skor + k.deger
+        LIST_STRING e = THIS.envanter
+        e.append(k.tur)
+        k.toplandi = TRUE
+    }
+
+    FUNC BOOL OlduMu() {
+        RETURN THIS.can <= 0
+    }
+}
+
+
+# ----------------------------------------------------------------------
+# 4) YARDIMCI FONKSIYONLAR
+# ----------------------------------------------------------------------
+
+FUNC DECIMAL Mesafe2D(DECIMAL x1, DECIMAL z1, DECIMAL x2, DECIMAL z2) {
+    DECIMAL dx = x2 - x1
+    DECIMAL dz = z2 - z1
+    RETURN SQRT(dx * dx + dz * dz)
+}
+
+# Manuelin SWITCH/CASE ornegiyle aynı kalipta: sayisal durumu metne cevirir
+FUNC STRING DurumYazisi(INT durum) {
+    SWITCH (durum) {
+        CASE 0:
+            RETURN "DEVRIYEDE"
+        CASE 1:
+            RETURN "TAKIP EDIYOR"
+        CASE 2:
+            RETURN "SALDIRIYOR!"
+        DEFAULT:
+            RETURN "BILINMIYOR"
+    }
+}
+
+FUNC STRING RastgeleKristalTuru() {
+    INT secim = RAND(1, 4)
+    IF (secim == 1) {
+        RETURN "Yakut"
+    } ELSE {
+        IF (secim == 2) {
+            RETURN "Safir"
+        } ELSE {
+            IF (secim == 3) {
+                RETURN "Zumrut"
+            } ELSE {
+                RETURN "Elmas"
+            }
+        }
+    }
+}
+
+FUNC INT KristalDegeri(STRING tur) {
+    IF (tur == "Elmas") {
+        RETURN 50
+    }
+    IF (tur == "Zumrut") {
+        RETURN 30
+    }
+    IF (tur == "Safir") {
+        RETURN 20
+    }
+    RETURN 10
+}
+
+# Dunya koordinatini minimap ekran koordinatina cevirir (STRUCT donus ornegi)
+FUNC Nokta2D DunyaToMinimap(DECIMAL dunyaX, DECIMAL dunyaZ, INT merkezX, INT merkezY, DECIMAL olcek) {
+    Nokta2D sonuc = NEW Nokta2D()
+    sonuc.x = merkezX + dunyaX * olcek
+    sonuc.y = merkezY + dunyaZ * olcek
+    RETURN sonuc
+}
+
+FUNC VOID GunlukYaz(STRING mesaj) {
+    TRY {
+        APPEND_FILE("kristal_vadisi_gunluk.txt", "[" + GET_TIME() + "s] " + mesaj + "\n")
+    } CATCH (hata) {
+        print("Gunluge yazilamadi: " + hata + "\n")
+    }
+}
+
+# Kristal alanini olusturur. Gecersiz adet girilirse THROW ile hata firlatir
+# ve TRY/CATCH ile guvenli bir varsayilana doner.
+FUNC LIST_Kristal DunyaKristalleriniOlustur(INT adet, DECIMAL araziYaricap, DECIMAL araziCarpan) {
+    LIST_Kristal liste = NEW LIST()
+
+    TRY {
+        IF (adet <= 0) {
+            THROW "Kristal adedi pozitif olmalidir!"
+        }
+    } CATCH (hata) {
+        print("UYARI: " + hata + " -> Varsayilan 1 kullanildi.\n")
+        adet = 1
+    }
+
+    INT i = 0
+    WHILE (i < adet) {
+        DECIMAL aci = RAD(RAND(0, 359))
+        INT mesafeTam = RAND(5, 55)
+        DECIMAL mesafe = mesafeTam
+        DECIMAL px = COS(aci) * mesafe
+        DECIMAL pz = SIN(aci) * mesafe
+        DECIMAL py = TERRAIN_HEIGHT(px, pz, araziCarpan) + 1.2
+
+        Kristal k = NEW Kristal()
+        k.x = px
+        k.y = py
+        k.z = pz
+        k.yaricap = 0.4
+        k.toplandi = FALSE
+        k.tur = RastgeleKristalTuru()
+        k.deger = KristalDegeri(k.tur)
+
+        liste.append(k)
+        i = i + 1
+    }
+
+    RETURN liste
+}
+
+FUNC LIST_Dusman DunyaDusmanlariniOlustur(INT adet, DECIMAL araziCarpan) {
+    LIST_Dusman liste = NEW LIST()
+
+    INT i = 0
+    WHILE (i < adet) {
+        DECIMAL aci = RAD(RAND(0, 359))
+        INT mesafeTam = RAND(10, 45)
+        DECIMAL mesafe = mesafeTam
+        DECIMAL px = COS(aci) * mesafe
+        DECIMAL pz = SIN(aci) * mesafe
+
+        Dusman d = NEW Dusman()
+        d.x = px
+        d.z = pz
+        d.y = TERRAIN_HEIGHT(px, pz, araziCarpan) + 1.0
+
+        INT hizTam = RAND(2, 5)
+        d.hiz = hizTam
+
+        d.can = 100
+        d.durum = DusmanDurumu.DEVRIYE
+        d.devriyeAcisi = RAD(RAND(0, 359))
+        d.devriyeMerkezX = px
+        d.devriyeMerkezZ = pz
+
+        INT devriyeYarTam = RAND(3, 8)
+        d.devriyeYaricap = devriyeYarTam
+
+        liste.append(d)
+        i = i + 1
+    }
+
+    RETURN liste
+}
+
+
+# ----------------------------------------------------------------------
+# 5) ANA PROGRAM
+# ----------------------------------------------------------------------
+
+INT EKRAN_W = 1280
+INT EKRAN_H = 720
+DECIMAL ARAZI_YARICAP = 60.0
+DECIMAL ARAZI_CARPAN = 8.0
+INT TOPLAM_KRISTAL = 12
+INT TOPLAM_DUSMAN = 5
+
+# --- Gunluk dosyasinin hazirlanmasi ---
+INT gunlukSatirSayisi = 0
+TRY {
+    IF (NOT FILE_EXISTS("kristal_vadisi_gunluk.txt")) {
+        WRITE_FILE("kristal_vadisi_gunluk.txt", "=== Kristal Vadisi Oyun Gunlugu ===\n")
+    }
+
+    STRING gunlukIcerik = READ_FILE("kristal_vadisi_gunluk.txt")
+    LIST_STRING satirlar = gunlukIcerik.split("\n")
+    gunlukSatirSayisi = satirlar.length()
+} CATCH (hata) {
+    print("Gunluk dosyasi hazirlanamadi: " + hata + "\n")
+}
+
+INIT_WINDOW(EKRAN_W, EKRAN_H, "Kristal Vadisi - KristalBASIC v1.0")
+SET_FPS(60)
+DISABLE_CURSOR()
+TOGGLE_FULLSCREEN()
+
+GunlukYaz("===== Yeni oturum baslatildi =====")
+
+# --- Oyuncu ---
+Oyuncu oyuncu = NEW Oyuncu()
+oyuncu.x = 0.0
+oyuncu.z = 0.0
+oyuncu.hiz = 9.0
+oyuncu.can = 100
+oyuncu.maxCan = 100
+oyuncu.skor = 0
+oyuncu.envanter = NEW LIST()
+oyuncu.y = TERRAIN_HEIGHT(oyuncu.x, oyuncu.z, ARAZI_CARPAN) + 1.8
+
+# --- Dunya nesneleri ---
+LIST_Kristal kristaller = DunyaKristalleriniOlustur(TOPLAM_KRISTAL, ARAZI_YARICAP, ARAZI_CARPAN)
+LIST_Dusman dusmanlar = DunyaDusmanlariniOlustur(TOPLAM_DUSMAN, ARAZI_CARPAN)
+
+# --- Envanter sayaclari (DICT STRING INT) ---
+DICT_STRING_INT envanterSayim = NEW DICT()
+envanterSayim.put("Yakut", 0)
+envanterSayim.put("Safir", 0)
+envanterSayim.put("Zumrut", 0)
+envanterSayim.put("Elmas", 0)
+
+# --- Kamera ---
+DECIMAL yaw = -1.5708
+DECIMAL pitch = -0.2
+DECIMAL hassasiyet = 0.0025
+
+# --- Oyun durumu ---
+INT durum = OyunDurumu.MENU
+INT kalanKristal = TOPLAM_KRISTAL
+
+
+# ======================================================================
+#                           ANA OYUN DONGUSU
+# ======================================================================
+WHILE (NOT WINDOW_SHOULD_CLOSE()) {
+
+    DECIMAL dt = FRAME_TIME()
+    DECIMAL zaman = GET_TIME()
+
+    # --- Gun/gece dongusu icin gokyuzu rengi (LERP + SIN) ---
+    DECIMAL gunIsigi = (SIN(zaman * 0.1) + 1.0) / 2.0
+    INT gokR = FLOOR(LERP(20.0, 135.0, gunIsigi))
+    INT gokG = FLOOR(LERP(20.0, 180.0, gunIsigi))
+    INT gokB = FLOOR(LERP(40.0, 235.0, gunIsigi))
+    INT gokyuzuRenk = gokR * 65536 + gokG * 256 + gokB
+
+
+    IF (durum == OyunDurumu.MENU) {
+
+        # ------------------------ MENU EKRANI ------------------------
+        CLEAR_BACKGROUND(0x1d3557)
+
+        DRAW_TEXT("KRISTAL VADISI", EKRAN_W / 2 - 200, 100, 50, 0xf1faee)
+        DRAW_TEXT("KristalBASIC v1.0 ile yazilmis 3D demo", EKRAN_W / 2 - 200, 170, 18, 0xa8dadc)
+
+        DRAW_TEXT("Toplam ${TOPLAM_KRISTAL} kristal topla, vadi bekcilerinden kac!", EKRAN_W / 2 - 260, 240, 18, 0xffffff)
+        DRAW_TEXT("WASD: Hareket | Fare: Bak", EKRAN_W / 2 - 260, 270, 18, 0xffffff)
+        DRAW_TEXT("Canin 0'a inerse kaybedersin.", EKRAN_W / 2 - 260, 300, 18, 0xffffff)
+
+        DRAW_TEXT("Gunluk kaydi: ${gunlukSatirSayisi} satir bulundu", EKRAN_W / 2 - 260, 350, 16, 0xe9c46a)
+
+        DRAW_TEXT("Baslamak icin BOSLUK tusuna bas", EKRAN_W / 2 - 200, 430, 22, 0x2a9d8f)
+
+        IF (KEY_PRESSED(32)) {
+            durum = OyunDurumu.OYUNDA
+            GunlukYaz("Oyuncu oyuna basladi.")
+        }
+
+    } ELSE {
+        IF (durum == OyunDurumu.OYUNDA) {
+
+            # ------------------------ OYUN EKRANI ------------------------
+
+            # --- Kamera donusu (fare) ---
+            yaw = yaw + MOUSE_DELTA_X() * hassasiyet
+            pitch = pitch - MOUSE_DELTA_Y() * hassasiyet
+            pitch = CLAMP(pitch, -1.4, 1.4)
+
+            DECIMAL ileriX = COS(yaw)
+            DECIMAL ileriZ = SIN(yaw)
+            DECIMAL sagX = COS(yaw + 1.5708)
+            DECIMAL sagZ = SIN(yaw + 1.5708)
+
+            # --- Hareket (WASD) ---
+            DECIMAL adim = oyuncu.hiz * dt
+
+            IF (KEY_DOWN(87)) {
+                oyuncu.x = oyuncu.x + ileriX * adim
+                oyuncu.z = oyuncu.z + ileriZ * adim
+            }
+            IF (KEY_DOWN(83)) {
+                oyuncu.x = oyuncu.x - ileriX * adim
+                oyuncu.z = oyuncu.z - ileriZ * adim
+            }
+            IF (KEY_DOWN(68)) {
+                oyuncu.x = oyuncu.x + sagX * adim
+                oyuncu.z = oyuncu.z + sagZ * adim
+            }
+            IF (KEY_DOWN(65)) {
+                oyuncu.x = oyuncu.x - sagX * adim
+                oyuncu.z = oyuncu.z - sagZ * adim
+            }
+
+            # --- Arazi sinirina hapset ---
+            DECIMAL merkezMesafe = SQRT(oyuncu.x * oyuncu.x + oyuncu.z * oyuncu.z)
+            IF (merkezMesafe > ARAZI_YARICAP - 1.0) {
+                DECIMAL olcekSinir = (ARAZI_YARICAP - 1.0) / merkezMesafe
+                oyuncu.x = oyuncu.x * olcekSinir
+                oyuncu.z = oyuncu.z * olcekSinir
+            }
+
+            # --- Zemine yapis ---
+            oyuncu.y = TERRAIN_HEIGHT(oyuncu.x, oyuncu.z, ARAZI_CARPAN) + 1.8
+
+            # --- Dusmanlari guncelle ve carpisma kontrolu ---
+            FOR (Dusman d IN dusmanlar) {
+                IF (d.can > 0) {
+                    d.Guncelle(oyuncu.x, oyuncu.z, dt, ARAZI_CARPAN)
+
+                    DECIMAL mesafeOyuncu = Mesafe2D(oyuncu.x, oyuncu.z, d.x, d.z)
+                    IF (d.durum == DusmanDurumu.SALDIRI) {
+                        IF (mesafeOyuncu < 2.5) {
+                            oyuncu.HasarAl(1)
+                        }
+                    }
+                }
+            }
+
+            # --- Kristal toplama ---
+            FOR (Kristal k IN kristaller) {
+                IF (NOT k.toplandi) {
+                    k.Guncelle(zaman)
+                    DECIMAL mesafeKristal = Mesafe2D(oyuncu.x, oyuncu.z, k.x, k.z)
+                    IF (mesafeKristal < 1.5) {
+                        oyuncu.KristalTopla(k)
+                        INT mevcutSayi = envanterSayim.get(k.tur)
+                        envanterSayim.put(k.tur, mevcutSayi + 1)
+                        kalanKristal = kalanKristal - 1
+                        GunlukYaz("Toplandi: " + k.tur + " (+" + k.deger + " puan), toplam skor: " + oyuncu.skor)
+                    }
+                }
+            }
+
+            # --- Oyun sonu kontrolleri ---
+            IF (oyuncu.OlduMu()) {
+                durum = OyunDurumu.BITTI
+                GunlukYaz("Oyun bitti. Final skor: " + oyuncu.skor)
+            }
+            IF (kalanKristal <= 0) {
+                durum = OyunDurumu.KAZANDI
+                GunlukYaz("OYUN KAZANILDI! Final skor: " + oyuncu.skor)
+            }
+
+            # ================== CIZIM: 3D DUNYA ==================
+            CLEAR_BACKGROUND(gokyuzuRenk)
+
+            DECIMAL hedefX = oyuncu.x + COS(yaw) * COS(pitch)
+            DECIMAL hedefY = oyuncu.y + SIN(pitch)
+            DECIMAL hedefZ = oyuncu.z + SIN(yaw) * COS(pitch)
+
+            BEGIN_3D(oyuncu.x, oyuncu.y, oyuncu.z, hedefX, hedefY, hedefZ)
+
+                DRAW_TERRAIN(0.0, 0.0, ARAZI_YARICAP, ARAZI_CARPAN, 0x2d6a4f)
+                DRAW_GRID(20, 1.0)
+
+                # Kristaller (parlayan kureler)
+                FOR (Kristal k IN kristaller) {
+                    IF (NOT k.toplandi) {
+                        DRAW_SPHERE(k.x, k.y, k.z, k.yaricap, 0x40e0d0)
+                        DRAW_SPHERE_WIRES(k.x, k.y, k.z, k.yaricap + 0.05, 0xffffff)
+                    }
+                }
+
+                # Dusmanlar (kup govde + uyari ucu)
+                FOR (Dusman d IN dusmanlar) {
+                    IF (d.can > 0) {
+                        INT dusmanRenk = 0x8d99ae
+                        IF (d.durum == DusmanDurumu.TAKIP) {
+                            dusmanRenk = 0xffb703
+                        } ELSE {
+                            IF (d.durum == DusmanDurumu.SALDIRI) {
+                                dusmanRenk = 0xd62828
+                            }
+                        }
+                        
+                        DRAW_CUBE(d.x, d.y, d.z, 1.0, 2.0, 1.0, dusmanRenk)
+                        DRAW_CUBE_WIRES(d.x, d.y, d.z, 1.0, 2.0, 1.0, 0x000000)
+
+                        DRAW_CYLINDER(d.x, d.y + 1.6, d.z, 0.3, 0.0, 0.4, 8, 0xffff00)
+                    }
+                }
+
+                # Basit bir golge efekti (kapsul)
+                DRAW_CAPSULE(oyuncu.x, oyuncu.y - 1.79, oyuncu.z, oyuncu.x, oyuncu.y - 1.78, oyuncu.z, 0.5, 8, 8, 0x000000)
+
+            END_3D()
+
+            # ================== CIZIM: 2D HUD ==================
+            DRAW_FPS(10, 10)
+
+            # Can barı
+            DRAW_RECTANGLE(10, 40, 200, 20, 0x444444)
+            DECIMAL canOrani = (oyuncu.can * 1.0) / oyuncu.maxCan
+            INT canGenislik = FLOOR(200.0 * canOrani)
+            DRAW_RECTANGLE(10, 40, canGenislik, 20, 0xe63946)
+            DRAW_TEXT("CAN: ${oyuncu.can} / ${oyuncu.maxCan}", 15, 42, 14, 0xffffff)
+
+            # Skor ve kalan kristal
+            DRAW_TEXT("SKOR: ${oyuncu.skor}", 10, 70, 20, 0xf1faee)
+            DRAW_TEXT("KALAN KRISTAL: ${kalanKristal}", 10, 95, 18, 0xf1faee)
+
+            # Envanter
+            DRAW_TEXT("ENVANTER".toUpper(), 10, 130, 16, 0xffd166)
+            DRAW_TEXT("Yakut x" + envanterSayim.get("Yakut"), 10, 155, 14, 0xe63946)
+            DRAW_TEXT("Safir x" + envanterSayim.get("Safir"), 10, 175, 14, 0x457b9d)
+            DRAW_TEXT("Zumrut x" + envanterSayim.get("Zumrut"), 10, 195, 14, 0x2a9d8f)
+            DRAW_TEXT("Elmas x" + envanterSayim.get("Elmas"), 10, 215, 14, 0xa8dadc)
+
+            # ================== MINIMAP ==================
+            INT minimapMerkezX = EKRAN_W - 110
+            INT minimapMerkezY = 110
+            INT minimapYaricap = 100
+            DECIMAL minimapOlcek = minimapYaricap / ARAZI_YARICAP
+
+            DRAW_CIRCLE(minimapMerkezX, minimapMerkezY, minimapYaricap, 0x1d3557)
+
+            FOR (Kristal k IN kristaller) {
+                IF (NOT k.toplandi) {
+                    Nokta2D nk = DunyaToMinimap(k.x, k.z, minimapMerkezX, minimapMerkezY, minimapOlcek)
+                    DRAW_CIRCLE(FLOOR(nk.x), FLOOR(nk.y), 3, 0x40e0d0)
+                    DELETE nk
+                }
+            }
+
+            FOR (Dusman d IN dusmanlar) {
+                IF (d.can > 0) {
+                    Nokta2D nd = DunyaToMinimap(d.x, d.z, minimapMerkezX, minimapMerkezY, minimapOlcek)
+                    DRAW_CIRCLE(FLOOR(nd.x), FLOOR(nd.y), 3, 0xd62828)
+                    DELETE nd
+                }
+            }
+
+            Nokta2D np = DunyaToMinimap(oyuncu.x, oyuncu.z, minimapMerkezX, minimapMerkezY, minimapOlcek)
+            INT npX = FLOOR(np.x)
+            INT npY = FLOOR(np.y)
+            DRAW_CIRCLE(npX, npY, 4, 0xffffff)
+            DRAW_LINE(npX, npY, npX + FLOOR(COS(yaw) * 8.0), npY + FLOOR(SIN(yaw) * 8.0), 0xffffff)
+            DELETE np
+
+        } ELSE {
+
+            # -------------------- BITIS EKRANLARI --------------------
+            IF (durum == OyunDurumu.BITTI) {
+                CLEAR_BACKGROUND(0x2b2024)
+                DRAW_TEXT("OYUN BITTI", EKRAN_W / 2 - 150, 180, 50, 0xe63946)
+                DRAW_TEXT("Vadi bekcileri seni yakaladi...", EKRAN_W / 2 - 150, 250, 20, 0xffffff)
+            } ELSE {
+                CLEAR_BACKGROUND(0x2a9d8f)
+                DRAW_TEXT("TUM KRISTALLER TOPLANDI!", EKRAN_W / 2 - 260, 180, 40, 0xffffff)
+                DRAW_TEXT("Vadiyi basariyla temizledin.", EKRAN_W / 2 - 150, 250, 20, 0xf1faee)
+            }
+
+            DRAW_TEXT("Final Skor: ${oyuncu.skor}", EKRAN_W / 2 - 150, 320, 26, 0xffd166)
+
+            # Toplanan kristalleri tek satirda ozetle
+            STRING envanterOzeti = ""
+            FOR (STRING e IN oyuncu.envanter) {
+                envanterOzeti = envanterOzeti + e + ", "
+            }
+            IF (envanterOzeti.length() > 2) {
+                envanterOzeti = envanterOzeti.substring(0, envanterOzeti.length() - 2)
+            } ELSE {
+                envanterOzeti = "(yok)"
+            }
+            DRAW_TEXT("Toplananlar: " + envanterOzeti, EKRAN_W / 2 - 280, 360, 16, 0xf1faee)
+
+            DRAW_TEXT("Yeniden baslamak icin R'ye bas", EKRAN_W / 2 - 200, 430, 18, 0xa8dadc)
+            DRAW_TEXT("Cikmak icin ESC'e bas", EKRAN_W / 2 - 200, 460, 18, 0xa8dadc)
+
+            IF (KEY_PRESSED(82)) {
+                # --- Oyunu sifirla ---
+                oyuncu.can = oyuncu.maxCan
+                oyuncu.skor = 0
+                oyuncu.x = 0.0
+                oyuncu.z = 0.0
+                oyuncu.y = TERRAIN_HEIGHT(oyuncu.x, oyuncu.z, ARAZI_CARPAN) + 1.8
+                DELETE oyuncu.envanter
+                oyuncu.envanter = NEW LIST()
+
+                envanterSayim.put("Yakut", 0)
+                envanterSayim.put("Safir", 0)
+                envanterSayim.put("Zumrut", 0)
+                envanterSayim.put("Elmas", 0)
+
+                FOR (Kristal k IN kristaller) {
+                    DELETE k
+                }
+                DELETE kristaller
+                kristaller = DunyaKristalleriniOlustur(TOPLAM_KRISTAL, ARAZI_YARICAP, ARAZI_CARPAN)
+
+                FOR (Dusman d IN dusmanlar) {
+                    DELETE d
+                }
+                DELETE dusmanlar
+                dusmanlar = DunyaDusmanlariniOlustur(TOPLAM_DUSMAN, ARAZI_CARPAN)
+                kalanKristal = TOPLAM_KRISTAL
+
+                durum = OyunDurumu.OYUNDA
+                GunlukYaz("Oyun yeniden baslatildi.")
+            }
+        }
+    }
+}
+
+# ----------------------------------------------------------------------
+# 6) KAPANIS
+# ----------------------------------------------------------------------
+GunlukYaz("===== Oturum sona erdi (toplam sure: " + GET_TIME() + "s) =====")
+
+FOR (Kristal k IN kristaller) {
+    DELETE k
+}
+DELETE kristaller
+
+FOR (Dusman d IN dusmanlar) {
+    DELETE d
+}
+DELETE dusmanlar
+
+DELETE oyuncu.envanter
+DELETE oyuncu
+DELETE envanterSayim
+
+SHOW_CURSOR()
+CLOSE_WINDOW()
+
+# KristalBASIC v1.0 ile sevgiyle yazildi.
