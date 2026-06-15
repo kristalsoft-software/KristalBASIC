@@ -32,25 +32,46 @@ Without wrestling with the steep learning curve of C/C++, you can develop high-p
 3.  Download the `kristalbasic-vscode.vsix` file from the Releases section.
 4.  Open VS Code, go to the **Extensions** tab, click the `...` menu on the top right, select **"Install from VSIX..."**, and install the extension.
 
-## 💻 Quick Start (Code Snippet)
+## 💻 Syntax & Code Example
 
-Open Visual Studio Code, create a `.kbas` file, and type the following code:
+KristalBASIC supports Object-Oriented Programming (OOP) and static typing. Here is an excerpt from the **Kristal Valley 3D Game**:
 
 ```basic
-' First window with KristalBASIC!
-Include "raylib"
+# --- Collectible Crystal Class ---
+CLASS Kristal {
+    DECIMAL x
+    DECIMAL y
+    DECIMAL z
+    DECIMAL yaricap
+    INT deger
+    STRING tur
+    BOOL toplandi
 
-InitWindow 800, 450, "KristalBASIC - Hello World"
-SetTargetFPS 60
+    # Simple floating animation using Math functions
+    FUNC VOID Guncelle(DECIMAL zaman) {
+        THIS.y = THIS.y + SIN(zaman * 2.0 + THIS.x) * 0.01
+    }
+}
 
-While Not WindowShouldClose()
-    BeginDrawing()
-        ClearBackground RAYWHITE
-        DrawText "Welcome to the KristalBASIC 3D World!", 190, 200, 20, LIGHTGRAY
-    EndDrawing()
-Wend
+# --- Enemy AI State Machine ---
+CLASS Dusman {
+    DECIMAL x
+    DECIMAL y
+    DECIMAL z
+    INT durum
 
-CloseWindow()
+    FUNC VOID Guncelle(DECIMAL oyuncuX, DECIMAL oyuncuZ) {
+        DECIMAL dx = oyuncuX - THIS.x
+        DECIMAL dz = oyuncuZ - THIS.z
+        DECIMAL mesafe = SQRT(dx * dx + dz * dz)
+
+        IF (mesafe < 18.0) {
+            THIS.durum = DusmanDurumu.TAKIP
+        } ELSE {
+            THIS.durum = DusmanDurumu.DEVRIYE
+        }
+    }
+}
 ```
 
 ## 🎮 Example 3D Game
@@ -67,5 +88,5 @@ For more details, please see the license file in the root directory.
 
 ---
 <div align="center">
-  Developed with ❤️ by <b>Kristalsoft</b> in Türkiye. 🇹🇷
+  Developed with ❤️ by <b>Kristalsoft</b> in Turkey. 🇹🇷
 </div>
