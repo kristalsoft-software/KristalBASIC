@@ -88,5 +88,5 @@ For more details, please see the license file in the root directory.
 
 ---
 <div align="center">
-  Developed with ❤️ by <b>Kristalsoft</b> in Turkey. 🇹🇷
+  Developed with ❤️ by <b>Kristalsoft</b> in Türkiye. 🇹🇷
 </div>
