@@ -2,7 +2,7 @@
   <p>
     <a href="README.md">🇬🇧 English</a> | <a href="README_tr.md">🇹🇷 Türkçe</a>
   </p>
-  <h1>💎 KristalBASIC</h1>
+  <h1>KristalBASIC</h1>
   <p><strong>C dilinin performansını, BASIC sözdiziminin kolaylığıyla birleştiren modern programlama dili.</strong></p>
 
   [![License: Freeware](https://img.shields.io/badge/License-Freeware-blue.svg)](#license)
@@ -32,25 +32,46 @@
 3.  Yine Releases bölümünde bulunan `kristalbasic-vscode.vsix` dosyasını indirin.
 4.  VS Code'u açın, **Extensions** sekmesine gidin, sağ üstteki `...` menüsünden **"Install from VSIX..."** seçeneğine tıklayın ve eklentiyi kurun.
 
-## 💻 Hızlı Başlangıç (Örnek Kod)
+## 💻 Sözdizimi (Syntax) ve Örnek Kod
 
-Visual Studio Code'u açın, `.kbas` uzantılı bir dosya oluşturun ve aşağıdaki kodu yazın:
+KristalBASIC Nesne Yönelimli Programlamayı (OOP) ve statik tiplemeyi destekler. İşte repository'deki **Kristal Vadisi 3D** oyunundan bir kesit:
 
 ```basic
-' KristalBASIC ile ilk pencere!
-Include "raylib"
+# --- Toplanabilir Kristal Sınıfı ---
+CLASS Kristal {
+    DECIMAL x
+    DECIMAL y
+    DECIMAL z
+    DECIMAL yaricap
+    INT deger
+    STRING tur
+    BOOL toplandi
 
-InitWindow 800, 450, "KristalBASIC - Merhaba Dunya"
-SetTargetFPS 60
+    # Hafif bir "yüzme" animasyonu için yükseklik salınımı
+    FUNC VOID Guncelle(DECIMAL zaman) {
+        THIS.y = THIS.y + SIN(zaman * 2.0 + THIS.x) * 0.01
+    }
+}
 
-While Not WindowShouldClose()
-    BeginDrawing()
-        ClearBackground RAYWHITE
-        DrawText "KristalBASIC 3D Dunyasina Hos Geldiniz!", 190, 200, 20, LIGHTGRAY
-    EndDrawing()
-Wend
+# --- Düşman Yapay Zeka (AI) Durum Makinesi ---
+CLASS Dusman {
+    DECIMAL x
+    DECIMAL y
+    DECIMAL z
+    INT durum
 
-CloseWindow()
+    FUNC VOID Guncelle(DECIMAL oyuncuX, DECIMAL oyuncuZ) {
+        DECIMAL dx = oyuncuX - THIS.x
+        DECIMAL dz = oyuncuZ - THIS.z
+        DECIMAL mesafe = SQRT(dx * dx + dz * dz)
+
+        IF (mesafe < 18.0) {
+            THIS.durum = DusmanDurumu.TAKIP
+        } ELSE {
+            THIS.durum = DusmanDurumu.DEVRIYE
+        }
+    }
+}
 ```
 
 ## 🎮 Örnek 3D Oyun
